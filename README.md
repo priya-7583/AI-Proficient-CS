@@ -1,7 +1,6 @@
 # AI-Proficient URL Shortener
 
-This folder is a separate engineer-led, AI-assisted implementation designed for
-AI proficiency evaluation against the URL shortener assignment.
+Engineer-led, AI-assisted implementation of a production-style URL shortener.
 
 ## What is included
 
@@ -14,7 +13,7 @@ AI proficiency evaluation against the URL shortener assignment.
 - Analytics (click count, unique visitors via IP hash, top referrers)
 - Executable scenario workflow with approval gates and run artifacts
 - Automated tests
-- Full assignment deliverable docs (requirements, decomposition, architecture,
+- Full engineering docs (requirements, decomposition, architecture,
   scenarios, risk controls, final summary)
 
 ## Run locally
@@ -84,4 +83,5 @@ See `docs/` for:
 - Architecture and control flow
 - Validation and risk controls
 - Final engineering summary
+- Traceability evidence samples
 - Greenfield, brownfield, and ambiguous scenarios
