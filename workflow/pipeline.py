@@ -44,6 +44,7 @@ def _stage(log_path: Path, name: str, status: str, detail: str) -> None:
 
 def _copy_project_source(project_root: Path, source_root: Path) -> None:
     source_root.mkdir(parents=True, exist_ok=True)
+    # Keep a deterministic snapshot of core project inputs for each run.
     for rel in [
         "app",
         "tests",

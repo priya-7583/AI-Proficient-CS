@@ -7,6 +7,7 @@ from app.config import Settings
 
 
 def _auth_headers(client: TestClient) -> dict[str, str]:
+    # Use the active app settings so tests remain environment-independent.
     settings: Settings = client.app.state.settings
     return {"x-api-key": settings.api_key}
 

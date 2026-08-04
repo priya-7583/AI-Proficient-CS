@@ -1,5 +1,7 @@
 name: quality-gate
 
+# Runs the same validation checks used for local release gating.
+
 on:
   push:
     branches: ["main"]

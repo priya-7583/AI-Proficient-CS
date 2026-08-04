@@ -32,6 +32,7 @@ def main() -> int:
     print(f"status={report.status}")
     print(f"workspace={report.workspace}")
     print(f"quality_gate_exit_code={report.quality_gate_exit_code}")
+    # Non-zero return indicates workflow or validation failure in automation.
     return 0 if report.status == "succeeded" else 2
 
 

@@ -65,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request: Request,
         url_service: LinkService = Depends(get_service),
     ) -> CreateLinkResponse:
+        # Mutating routes require API key or JWT when auth is enabled.
         auth.authorize(request)
         identity = request.client.host if request.client else "unknown"
         if not limiter.allow(identity):

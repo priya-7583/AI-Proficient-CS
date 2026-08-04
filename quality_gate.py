@@ -124,6 +124,7 @@ def _performance_gate() -> tuple[bool, dict]:
 
 
 def _run_pytest() -> tuple[int, str, list[str]]:
+    # Gate against canonical tests to avoid archived run-artifact test collisions.
     test_targets = ["tests/test_api.py"]
     generated = ROOT / "tests" / "test_brownfield_generated.py"
     if generated.exists():
