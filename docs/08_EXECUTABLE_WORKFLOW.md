@@ -20,6 +20,12 @@ Optional fast mode (skip validation):
 python run_workflow.py --scenario brownfield --no-validate
 ```
 
+Require explicit sign-off file for high-impact stages:
+
+```powershell
+python run_workflow.py --scenario brownfield --require-signoff --signoff-file signoff.json
+```
+
 ## Workflow stages
 
 1. Requirement normalization
@@ -41,6 +47,7 @@ python run_workflow.py --scenario brownfield --no-validate
 - `stage_events.jsonl`
 - `prompt_log.jsonl`
 - `decision_log.jsonl`
+- `PROMPT_TRANSCRIPTS.md`
 - Brownfield-only: before/after snapshots and diff patch
 
 ## Brownfield automation evidence
@@ -53,8 +60,12 @@ Before and after snapshots plus unified diff prove change impact and control.
 
 `quality_gate.py` performs:
 
-1. secret-pattern scan
-2. pytest execution (`tests/`)
-3. JSON report output (`QUALITY_GATE_REPORT.json`)
+1. Python compile analysis
+2. `ruff` lint check
+3. `mypy` typing check
+4. secret-pattern scan
+5. performance smoke benchmark
+6. pytest execution (`tests/`)
+7. JSON report output (`QUALITY_GATE_REPORT.json`)
 
 This creates reproducible validation evidence for review sign-off.

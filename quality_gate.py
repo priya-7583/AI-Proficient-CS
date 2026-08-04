@@ -62,18 +62,37 @@ def _analysis_gate() -> tuple[bool, list[str]]:
     return (len(errors) == 0), errors
 
 
-def _lint_gate() -> tuple[bool, list[str]]:
-    findings: list[str] = []
-    for p in _python_files():
-        text = p.read_text(encoding="utf-8", errors="ignore")
-        for i, line in enumerate(text.splitlines(), start=1):
-            if line.rstrip("\n\r") != line.rstrip("\n\r "):
-                findings.append(f"{p.relative_to(ROOT)}:{i}: trailing whitespace")
-            if "\t" in line:
-                findings.append(f"{p.relative_to(ROOT)}:{i}: tab indentation disallowed")
-            if len(line) > 120:
-                findings.append(f"{p.relative_to(ROOT)}:{i}: line too long ({len(line)} > 120)")
-    return (len(findings) == 0), findings
+def _run_tool(cmd: list[str]) -> tuple[bool, str]:
+    proc = subprocess.run(
+        cmd,
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+    )
+    output = (proc.stdout + "\n" + proc.stderr).strip()
+    return proc.returncode == 0, output
+
+
+def _lint_gate() -> tuple[bool, str]:
+    return _run_tool(
+        [
+            sys.executable,
+            "-m",
+            "ruff",
+            "check",
+            "app",
+            "tests",
+            "workflow",
+            "run_workflow.py",
+            "quality_gate.py",
+            "--select",
+            "E9,F",
+        ]
+    )
+
+
+def _typing_gate() -> tuple[bool, str]:
+    return _run_tool([sys.executable, "-m", "mypy", "app", "workflow", "run_workflow.py"])
 
 
 def _performance_gate() -> tuple[bool, dict]:
@@ -122,7 +141,8 @@ def _run_pytest() -> tuple[int, str, list[str]]:
 
 def main() -> int:
     analysis_ok, analysis_errors = _analysis_gate()
-    lint_ok, lint_findings = _lint_gate()
+    lint_ok, lint_output = _lint_gate()
+    typing_ok, typing_output = _typing_gate()
     findings = _scan_for_secrets()
     rc, out, targets = _run_pytest()
 
@@ -130,12 +150,13 @@ def main() -> int:
 
     security_ok = len(findings) == 0
     tests_ok = rc == 0
-    all_ok = analysis_ok and lint_ok and security_ok and tests_ok and perf_ok
+    all_ok = analysis_ok and lint_ok and typing_ok and security_ok and tests_ok and perf_ok
 
     report = {
         "timestamp": _now(),
         "analysis": {"ok": analysis_ok, "errors": analysis_errors},
-        "linting": {"ok": lint_ok, "findings": lint_findings},
+        "linting": {"ok": lint_ok, "output": lint_output},
+        "typing": {"ok": typing_ok, "output": typing_output},
         "security": {"ok": security_ok, "secret_scan_findings": findings},
         "performance": {"ok": perf_ok, **perf_detail},
         "tests": {"ok": tests_ok, "exit_code": rc, "targets": targets},
@@ -151,8 +172,10 @@ def main() -> int:
             print(f"- {e}")
     if not lint_ok:
         print("Lint failed:")
-        for f in lint_findings[:40]:
-            print(f"- {f}")
+        print(lint_output)
+    if not typing_ok:
+        print("Typing gate failed:")
+        print(typing_output)
     if not security_ok:
         print("Secret-like patterns detected in:")
         for f in findings:

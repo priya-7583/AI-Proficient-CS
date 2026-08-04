@@ -44,7 +44,17 @@ def _stage(log_path: Path, name: str, status: str, detail: str) -> None:
 
 def _copy_project_source(project_root: Path, source_root: Path) -> None:
     source_root.mkdir(parents=True, exist_ok=True)
-    for rel in ["app", "tests", "requirements.txt", "README.md", "quality_gate.py"]:
+    for rel in [
+        "app",
+        "tests",
+        "workflow",
+        "requirements.txt",
+        "README.md",
+        "quality_gate.py",
+        "run_workflow.py",
+        "mypy.ini",
+        "pytest.ini",
+    ]:
         src = project_root / rel
         dst = source_root / rel
         if src.is_dir():
@@ -184,6 +194,52 @@ def _write(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _write_prompt_transcript(
+    workspace: Path,
+    *,
+    scenario: str,
+    normalized_requirement: str,
+    decomposition: str,
+    impact_analysis: str,
+    changed_files: list[str],
+) -> None:
+    transcript = textwrap.dedent(
+        f"""
+        # Prompt Transcript (Representative)
+
+        ## Stage: requirements
+        ### Prompt
+        Scenario: {scenario}
+        Normalize the requirement and capture ambiguities if present.
+
+        ### Response
+        {normalized_requirement}
+
+        ## Stage: decomposition
+        ### Prompt
+        Produce actionable task sequencing with dependencies.
+
+        ### Response
+        {decomposition}
+
+        ## Stage: impact_analysis
+        ### Prompt
+        Identify impacted modules, APIs, and data flow.
+
+        ### Response
+        {impact_analysis}
+
+        ## Stage: implement
+        ### Prompt
+        Apply scoped implementation changes and preserve compatibility.
+
+        ### Response
+        changed_files={changed_files}
+        """
+    ).strip()
+    _write(workspace / "PROMPT_TRANSCRIPTS.md", transcript + "\n")
+
+
 def run_pipeline(
     project_root: str,
     *,
@@ -303,6 +359,15 @@ def run_pipeline(
             },
         )
     _stage(stage_log, "implement", "succeeded", f"changed_files={changed_files}")
+
+    _write_prompt_transcript(
+        workspace,
+        scenario=scenario,
+        normalized_requirement=normalized,
+        decomposition=decomposition,
+        impact_analysis=impact,
+        changed_files=changed_files,
+    )
 
     gate_exit: Optional[int] = None
     validation_tail = "validation skipped"

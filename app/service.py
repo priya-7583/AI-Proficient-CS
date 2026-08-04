@@ -4,7 +4,7 @@ import hashlib
 import secrets
 import string
 from datetime import UTC, datetime, timedelta
-from typing import Optional
+from typing import Optional, cast
 
 from app.db import Database
 
@@ -147,7 +147,7 @@ class LinkService:
         if expires_at and expires_at < self._now():
             raise LinkExpiredError(short_code)
 
-        return row["original_url"]
+        return cast(str, row["original_url"])
 
     def record_click(
         self,

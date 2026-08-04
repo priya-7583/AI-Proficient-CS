@@ -92,5 +92,5 @@ def test_quality_gate_report_has_all_gate_sections(tmp_path: Path) -> None:
     )
     assert proc.returncode == 0
     report = json.loads((project_root / "QUALITY_GATE_REPORT.json").read_text(encoding="utf-8"))
-    assert set(["analysis", "linting", "security", "performance", "tests", "overall_ok"]).issubset(report.keys())
+    assert set(["analysis", "linting", "typing", "security", "performance", "tests", "overall_ok"]).issubset(report.keys())
     assert report["overall_ok"] is True

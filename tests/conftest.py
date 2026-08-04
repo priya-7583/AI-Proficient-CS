@@ -16,6 +16,7 @@ def client(tmp_path: Path) -> TestClient:
         db_path=str(tmp_path / "test.db"),
         short_code_length=6,
         create_limit_per_minute=3,
+        jwt_secret="test-jwt-secret-at-least-32-bytes",
     )
     app = create_app(settings)
     return TestClient(app)

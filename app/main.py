@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from collections import defaultdict, deque
 from datetime import UTC, datetime
-from typing import Deque
+
+from redis import Redis
+from redis.exceptions import RedisError
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
 from app.config import Settings, load_settings
+from app.auth import AuthConfig, MutatingAuth
 from app.db import Database
 from app.models import (
     CreateLinkRequest,
@@ -17,23 +19,8 @@ from app.models import (
     LinkDetailsResponse,
     LinkStatsResponse,
 )
+from app.rate_limit import InMemoryRateLimiter, RateLimiter, RedisRateLimiter
 from app.service import AliasInUseError, LinkExpiredError, LinkNotFoundError, LinkService
-
-
-class CreateRateLimiter:
-    def __init__(self, limit_per_minute: int) -> None:
-        self.limit = limit_per_minute
-        self._hits: dict[str, Deque[float]] = defaultdict(deque)
-
-    def allow(self, identity: str) -> bool:
-        now = datetime.now(UTC).timestamp()
-        q = self._hits[identity]
-        while q and now - q[0] > 60:
-            q.popleft()
-        if len(q) >= self.limit:
-            return False
-        q.append(now)
-        return True
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -42,9 +29,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     db = Database(settings.db_path)
     db.initialize()
     service = LinkService(db, short_code_length=settings.short_code_length)
-    limiter = CreateRateLimiter(settings.create_limit_per_minute)
+
+    limiter: RateLimiter = InMemoryRateLimiter(settings.create_limit_per_minute)
+    if settings.redis_url:
+        try:
+            redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
+            redis_client.ping()
+            limiter = RedisRateLimiter(settings.create_limit_per_minute, redis_client)
+        except RedisError:
+            # Keep service available if Redis is configured but unreachable.
+            limiter = InMemoryRateLimiter(settings.create_limit_per_minute)
+
+    auth = MutatingAuth(
+        AuthConfig(
+            require_auth=settings.require_mutating_auth,
+            api_key=settings.api_key,
+            jwt_secret=settings.jwt_secret,
+            jwt_algorithm=settings.jwt_algorithm,
+        )
+    )
 
     app = FastAPI(title=settings.app_name, version="1.0.0")
+    app.state.settings = settings
 
     def get_service() -> LinkService:
         return service
@@ -59,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request: Request,
         url_service: LinkService = Depends(get_service),
     ) -> CreateLinkResponse:
+        auth.authorize(request)
         identity = request.client.host if request.client else "unknown"
         if not limiter.allow(identity):
             raise HTTPException(
@@ -124,7 +131,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return LinkStatsResponse(**stats)
 
     @app.delete("/api/v1/links/{short_code}", response_model=DeactivateLinkResponse)
-    def deactivate_link(short_code: str, url_service: LinkService = Depends(get_service)) -> DeactivateLinkResponse:
+    def deactivate_link(
+        short_code: str,
+        request: Request,
+        url_service: LinkService = Depends(get_service),
+    ) -> DeactivateLinkResponse:
+        auth.authorize(request)
         try:
             ok = url_service.deactivate(short_code)
         except LinkNotFoundError as exc:

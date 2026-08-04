@@ -3,3 +3,7 @@ uvicorn>=0.29
 pydantic>=2.6
 pytest>=8.0
 httpx>=0.28
+PyJWT>=2.8
+redis>=5.0
+ruff>=0.6
+mypy>=1.10
