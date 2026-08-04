@@ -8,6 +8,7 @@ __pycache__/
 venv/
 
 # Local runtime artifacts
+# Keep generated run/output files out of source control.
 shortener.db
 runs/
 signoff.json
